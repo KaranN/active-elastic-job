@@ -117,7 +117,7 @@ module ActiveJob
             @queue_urls[job.queue_name.to_s] = nil
             retry
           end
-          Rails.logger.debug "****DEBUG: called from enqueue_at with @queue_urls #{@queue_urls.inspect}"
+          Rails.logger.debug "******DEBUG: called from enqueue_at with @queue_urls #{@queue_urls.inspect}"
           raise NonExistentQueue.new(job, aws_region)
         rescue Aws::Errors::ServiceError => e
           raise Error, "Could not enqueue job, #{e.message}"
@@ -189,6 +189,7 @@ module ActiveJob
           else
             Rails.logger.debug "******DEBUG: aws_credentials not present}"
           end
+          return @aws_credentials
         end
 
         def aws_region
