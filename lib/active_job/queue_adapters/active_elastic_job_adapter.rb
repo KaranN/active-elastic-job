@@ -117,6 +117,7 @@ module ActiveJob
             @queue_urls[job.queue_name.to_s] = nil
             retry
           end
+          Rails.logger.debug "****DEBUG: called from enqueue_at with @queue_urls #{@queue_urls.inspect}"
           raise NonExistentQueue.new(job, aws_region)
         rescue Aws::Errors::ServiceError => e
           raise Error, "Could not enqueue job, #{e.message}"
@@ -150,9 +151,11 @@ module ActiveJob
           cache_key = queue_name.to_s
           @queue_urls ||= { }
           return @queue_urls[cache_key] if @queue_urls[cache_key]
+          Rails.logger.debug "******DEBUG: aws_sqs_client #{aws_sqs_client.inspect}"
           resp = aws_sqs_client.get_queue_url(queue_name: queue_name.to_s)
           @queue_urls[cache_key] = resp.queue_url
         rescue Aws::SQS::Errors::NonExistentQueue => e
+          Rails.logger.debug "******DEBUG: called from queue_url with @queue_urls #{@queue_urls.inspect}"
           raise NonExistentQueue.new(queue_name, aws_region)
         end
 
@@ -181,6 +184,11 @@ module ActiveJob
                                else
                                  config.aws_credentials
                                end
+          if @aws_credentials.present?
+            Rails.logger.debug "******DEBUG: aws_credentials #{@aws_credentials.inspect}"
+          else
+            Rails.logger.debug "******DEBUG: aws_credentials not present}"
+          end
         end
 
         def aws_region
