@@ -118,6 +118,7 @@ module ActiveJob
             retry
           end
           Rails.logger.debug "******DEBUG: called from enqueue_at with @queue_urls #{@queue_urls.inspect}"
+          aws_sqs_client(true)
           raise NonExistentQueue.new(job, aws_region)
         rescue Aws::Errors::ServiceError => e
           raise Error, "Could not enqueue job, #{e.message}"
@@ -150,12 +151,14 @@ module ActiveJob
         def queue_url(queue_name)
           cache_key = queue_name.to_s
           @queue_urls ||= { }
+          Rails.logger.debug "******DEBUG: queue_urls #{@queue_urls.inspect}"
           return @queue_urls[cache_key] if @queue_urls[cache_key]
           Rails.logger.debug "******DEBUG: aws_sqs_client #{aws_sqs_client.inspect}"
           resp = aws_sqs_client.get_queue_url(queue_name: queue_name.to_s)
           @queue_urls[cache_key] = resp.queue_url
         rescue Aws::SQS::Errors::NonExistentQueue => e
           Rails.logger.debug "******DEBUG: called from queue_url with @queue_urls #{@queue_urls.inspect}"
+          aws_sqs_client(true)
           raise NonExistentQueue.new(queue_name, aws_region)
         end
 
@@ -174,16 +177,28 @@ module ActiveJob
           end
         end
 
-        def aws_sqs_client
-          @aws_sqs_client ||= Aws::SQS::Client.new(credentials: aws_sqs_client_credentials )
+        def aws_sqs_client(reinstantiate_obj=false)
+          if reinstantiate_obj
+            @aws_sqs_client = Aws::SQS::Client.new(credentials: aws_sqs_client_credentials(reinstantiate_obj) )
+          else
+            @aws_sqs_client ||= Aws::SQS::Client.new(credentials: aws_sqs_client_credentials )
+          end
         end
 
-        def aws_sqs_client_credentials
-          @aws_credentials ||= if config.aws_credentials.kind_of?(Proc)
-                                 config.aws_credentials.call
-                               else
-                                 config.aws_credentials
-                               end
+        def aws_sqs_client_credentials(reinstantiate_obj=false)
+          if reinstantiate_obj
+            @aws_credentials = if config.aws_credentials.kind_of?(Proc)
+                                   config.aws_credentials.call
+                                 else
+                                   config.aws_credentials
+                                 end
+          else
+            @aws_credentials ||= if config.aws_credentials.kind_of?(Proc)
+                                   config.aws_credentials.call
+                                 else
+                                   config.aws_credentials
+                                 end
+          end
           if @aws_credentials.present?
             Rails.logger.debug "******DEBUG: aws_credentials #{@aws_credentials.inspect}"
           else
